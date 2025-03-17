@@ -14,22 +14,48 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   service: z.string().min(3, "Service name must be at least 3 characters"),
+  plan: z.string().min(1, "Please select a plan"),
   reason: z.string().min(10, "Please provide more details about your request"),
 });
 
+const servicePlans = {
+  netflix: [
+    { id: "basic", name: "Basic Plan" },
+    { id: "standard", name: "Standard Plan" },
+    { id: "premium", name: "Premium Plan" }
+  ],
+  crunchyroll: [
+    { id: "free", name: "Free Plan" },
+    { id: "fan", name: "Crunchyroll Fan" },
+    { id: "mega_fan", name: "Crunchyroll Mega Fan" },
+    { id: "ultimate_fan", name: "Crunchyroll Ultimate Fan" }
+  ],
+  amazon: [
+    { id: "monthly", name: "Amazon Prime Monthly" },
+    { id: "annual", name: "Amazon Prime Annual" },
+    { id: "video_only", name: "Prime Video Only" }
+  ],
+  steam: [
+    { id: "standard", name: "Standard Account" }
+  ]
+};
+
 const ServiceRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedService, setSelectedService] = useState("netflix");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      service: "",
+      service: "netflix",
+      plan: "",
       reason: "",
     },
   });
@@ -53,6 +79,14 @@ const ServiceRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
       setIsSubmitting(false);
     }
   };
+
+  // Update selected service when the service field changes
+  const watchService = form.watch("service");
+  if (watchService !== selectedService) {
+    setSelectedService(watchService);
+    // Reset the plan when service changes
+    form.setValue("plan", "");
+  }
 
   return (
     <Form {...form}>
@@ -78,7 +112,48 @@ const ServiceRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
             <FormItem>
               <FormLabel>Service Name</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Disney+, HBO Max, Spotify" {...field} />
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="e.g., Disney+, HBO Max, Spotify"
+                  {...field}
+                >
+                  <option value="netflix">Netflix</option>
+                  <option value="crunchyroll">Crunchyroll</option>
+                  <option value="amazon">Amazon Prime</option>
+                  <option value="steam">Steam</option>
+                </select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="plan"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel>Select Plan</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="flex flex-col space-y-1"
+                >
+                  {servicePlans[selectedService as keyof typeof servicePlans].map((plan) => (
+                    <FormItem 
+                      key={plan.id} 
+                      className="flex items-center space-x-3 space-y-0 bg-secondary/30 p-3 rounded-md"
+                    >
+                      <FormControl>
+                        <RadioGroupItem value={plan.id} />
+                      </FormControl>
+                      <FormLabel className="font-normal m-0 cursor-pointer">
+                        {plan.name}
+                      </FormLabel>
+                    </FormItem>
+                  ))}
+                </RadioGroup>
               </FormControl>
               <FormMessage />
             </FormItem>

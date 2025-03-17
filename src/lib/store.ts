@@ -1,8 +1,18 @@
 
-// This is a mock data store that simulates fetching from a database
-// In a real application, this would be replaced with API calls
-
 import { toast } from "sonner";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  Timestamp,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "./firebase";
 
 export interface Account {
   id: string;
@@ -26,107 +36,7 @@ export interface Cookie {
   status: "active" | "expiring" | "expired";
 }
 
-// Initial mock data
-let accounts: Account[] = [
-  {
-    id: "1",
-    service: "netflix",
-    email: "premium1@example.com",
-    password: "securepass123",
-    status: "active",
-    lastUsed: null,
-    addedOn: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-    usageCount: 0,
-  },
-  {
-    id: "2",
-    service: "netflix",
-    email: "premium2@example.com",
-    password: "netflixpass456",
-    status: "active",
-    lastUsed: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    addedOn: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-    usageCount: 3,
-  },
-  {
-    id: "3",
-    service: "crunchyroll",
-    email: "anime1@example.com",
-    password: "animepass123",
-    status: "active",
-    lastUsed: null,
-    addedOn: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-    usageCount: 0,
-  },
-  {
-    id: "4",
-    service: "steam",
-    email: "gamer1@example.com",
-    password: "steampass123",
-    status: "expiring",
-    lastUsed: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    addedOn: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    usageCount: 2,
-  },
-  {
-    id: "5",
-    service: "amazon",
-    email: "prime1@example.com",
-    password: "primepass123",
-    status: "active",
-    lastUsed: null,
-    addedOn: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 50 * 24 * 60 * 60 * 1000).toISOString(),
-    usageCount: 0,
-  },
-  {
-    id: "6",
-    service: "amazon",
-    email: "prime2@example.com",
-    password: "amazonpass456",
-    status: "expired",
-    lastUsed: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    addedOn: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    usageCount: 5,
-  },
-];
-
-let cookies: Cookie[] = [
-  {
-    id: "1",
-    name: "NetflixId",
-    value: "cl2x42fs9mze04k3ntexmpl",
-    domain: ".netflix.com",
-    addedOn: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "NetflixSecure",
-    value: "v2x94jfgt745jk86ntexmpl",
-    domain: ".netflix.com",
-    addedOn: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "NetflixSession",
-    value: "b4m67pts30vz28k9ntexmpl",
-    domain: ".netflix.com",
-    addedOn: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresOn: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "expiring",
-  },
-];
-
-// Simulate user rate limiting with local storage
+// User rate limiting with local storage
 const USER_CLAIM_KEY = "user_claim_timestamps";
 const CLAIM_LIMIT_HOURS = 12; // Hours between claims
 
@@ -150,145 +60,299 @@ const canUserClaim = (): boolean => {
   return recentClaims.length === 0;
 };
 
+// Convert Firestore document to Account
+const documentToAccount = (doc: any): Account => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    service: data.service,
+    email: data.email,
+    password: data.password,
+    status: data.status,
+    lastUsed: data.lastUsed ? data.lastUsed.toDate().toISOString() : null,
+    addedOn: data.addedOn.toDate().toISOString(),
+    expiresOn: data.expiresOn ? data.expiresOn.toDate().toISOString() : null,
+    usageCount: data.usageCount || 0,
+  };
+};
+
+// Convert Firestore document to Cookie
+const documentToCookie = (doc: any): Cookie => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    name: data.name,
+    value: data.value,
+    domain: data.domain,
+    addedOn: data.addedOn.toDate().toISOString(),
+    expiresOn: data.expiresOn ? data.expiresOn.toDate().toISOString() : null,
+    status: data.status,
+  };
+};
+
 // API functions
 export const getAccountsByService = async (
   service: string
 ): Promise<Account[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return accounts.filter(
-    (account) => account.service === service && account.status !== "expired"
-  );
+  try {
+    const q = query(
+      collection(db, "accounts"), 
+      where("service", "==", service),
+      where("status", "!=", "expired")
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(documentToAccount);
+  } catch (error) {
+    console.error("Error getting accounts by service:", error);
+    toast.error("Failed to fetch accounts");
+    return [];
+  }
 };
 
 export const getAllAccounts = async (): Promise<Account[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return [...accounts];
+  try {
+    const querySnapshot = await getDocs(collection(db, "accounts"));
+    return querySnapshot.docs.map(documentToAccount);
+  } catch (error) {
+    console.error("Error getting all accounts:", error);
+    toast.error("Failed to fetch accounts");
+    return [];
+  }
 };
 
 export const getAllCookies = async (): Promise<Cookie[]> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return cookies.filter((cookie) => cookie.status !== "expired");
+  try {
+    const q = query(
+      collection(db, "cookies"),
+      where("status", "!=", "expired")
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(documentToCookie);
+  } catch (error) {
+    console.error("Error getting all cookies:", error);
+    toast.error("Failed to fetch cookies");
+    return [];
+  }
 };
 
 export const claimAccount = async (id: string): Promise<Account | null> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  try {
+    if (!canUserClaim()) {
+      toast.error(
+        `You can only claim one account every ${CLAIM_LIMIT_HOURS} hours.`
+      );
+      return null;
+    }
 
-  if (!canUserClaim()) {
-    toast.error(
-      `You can only claim one account every ${CLAIM_LIMIT_HOURS} hours.`
-    );
+    const accountRef = doc(db, "accounts", id);
+    const accountDoc = await getDocs(query(collection(db, "accounts"), where("__name__", "==", id)));
+    
+    if (accountDoc.empty) {
+      toast.error("Account not found");
+      return null;
+    }
+    
+    const account = documentToAccount(accountDoc.docs[0]);
+    
+    // Update account usage
+    await updateDoc(accountRef, {
+      lastUsed: serverTimestamp(),
+      usageCount: (account.usageCount || 0) + 1,
+    });
+    
+    // Track the claim
+    addUserClaim();
+    
+    toast.success("Account claimed successfully!");
+    
+    // Return updated account
+    return {
+      ...account,
+      lastUsed: new Date().toISOString(),
+      usageCount: account.usageCount + 1,
+    };
+  } catch (error) {
+    console.error("Error claiming account:", error);
+    toast.error("Failed to claim account");
     return null;
   }
-
-  const accountIndex = accounts.findIndex((a) => a.id === id);
-  if (accountIndex === -1) {
-    toast.error("Account not found");
-    return null;
-  }
-
-  const account = { ...accounts[accountIndex] };
-  
-  // Update account usage
-  account.lastUsed = new Date().toISOString();
-  account.usageCount += 1;
-  
-  // Update in our "database"
-  accounts[accountIndex] = account;
-  
-  // Track the claim
-  addUserClaim();
-  
-  toast.success("Account claimed successfully!");
-  return account;
 };
 
 export const addAccount = async (account: Omit<Account, "id" | "addedOn" | "lastUsed" | "usageCount">): Promise<Account> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  const newAccount: Account = {
-    ...account,
-    id: Math.random().toString(36).substring(2, 9),
-    addedOn: new Date().toISOString(),
-    lastUsed: null,
-    usageCount: 0,
-  };
-  
-  accounts = [...accounts, newAccount];
-  toast.success("Account added successfully!");
-  return newAccount;
+  try {
+    const docRef = await addDoc(collection(db, "accounts"), {
+      ...account,
+      addedOn: serverTimestamp(),
+      lastUsed: null,
+      usageCount: 0,
+      expiresOn: account.expiresOn ? Timestamp.fromDate(new Date(account.expiresOn)) : null,
+    });
+    
+    toast.success("Account added successfully!");
+    
+    return {
+      id: docRef.id,
+      ...account,
+      addedOn: new Date().toISOString(),
+      lastUsed: null,
+      usageCount: 0,
+    };
+  } catch (error) {
+    console.error("Error adding account:", error);
+    toast.error("Failed to add account");
+    throw error;
+  }
 };
 
 export const updateAccount = async (id: string, updates: Partial<Account>): Promise<Account | null> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  const accountIndex = accounts.findIndex((a) => a.id === id);
-  if (accountIndex === -1) {
-    toast.error("Account not found");
+  try {
+    const accountRef = doc(db, "accounts", id);
+    
+    // Convert date strings to Firestore timestamps
+    const firestoreUpdates: any = { ...updates };
+    if (updates.expiresOn) {
+      firestoreUpdates.expiresOn = Timestamp.fromDate(new Date(updates.expiresOn));
+    }
+    
+    await updateDoc(accountRef, firestoreUpdates);
+    
+    toast.success("Account updated successfully!");
+    
+    // Fetch the updated account
+    const accountDoc = await getDocs(query(collection(db, "accounts"), where("__name__", "==", id)));
+    if (accountDoc.empty) {
+      return null;
+    }
+    
+    return documentToAccount(accountDoc.docs[0]);
+  } catch (error) {
+    console.error("Error updating account:", error);
+    toast.error("Failed to update account");
     return null;
   }
-  
-  accounts[accountIndex] = {
-    ...accounts[accountIndex],
-    ...updates,
-  };
-  
-  toast.success("Account updated successfully!");
-  return accounts[accountIndex];
 };
 
 export const deleteAccount = async (id: string): Promise<boolean> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  const accountIndex = accounts.findIndex((a) => a.id === id);
-  if (accountIndex === -1) {
-    toast.error("Account not found");
+  try {
+    await deleteDoc(doc(db, "accounts", id));
+    toast.success("Account deleted successfully!");
+    return true;
+  } catch (error) {
+    console.error("Error deleting account:", error);
+    toast.error("Failed to delete account");
     return false;
   }
-  
-  accounts = accounts.filter((a) => a.id !== id);
-  toast.success("Account deleted successfully!");
-  return true;
 };
 
 export const addCookie = async (cookie: Omit<Cookie, "id" | "addedOn">): Promise<Cookie> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  const newCookie: Cookie = {
-    ...cookie,
-    id: Math.random().toString(36).substring(2, 9),
-    addedOn: new Date().toISOString(),
-  };
-  
-  cookies = [...cookies, newCookie];
-  toast.success("Cookie added successfully!");
-  return newCookie;
+  try {
+    const docRef = await addDoc(collection(db, "cookies"), {
+      ...cookie,
+      addedOn: serverTimestamp(),
+      expiresOn: cookie.expiresOn ? Timestamp.fromDate(new Date(cookie.expiresOn)) : null,
+    });
+    
+    toast.success("Cookie added successfully!");
+    
+    return {
+      id: docRef.id,
+      ...cookie,
+      addedOn: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("Error adding cookie:", error);
+    toast.error("Failed to add cookie");
+    throw error;
+  }
 };
 
 export const deleteCookie = async (id: string): Promise<boolean> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  const cookieIndex = cookies.findIndex((c) => c.id === id);
-  if (cookieIndex === -1) {
-    toast.error("Cookie not found");
+  try {
+    await deleteDoc(doc(db, "cookies", id));
+    toast.success("Cookie deleted successfully!");
+    return true;
+  } catch (error) {
+    console.error("Error deleting cookie:", error);
+    toast.error("Failed to delete cookie");
     return false;
   }
-  
-  cookies = cookies.filter((c) => c.id !== id);
-  toast.success("Cookie deleted successfully!");
-  return true;
 };
 
-// Admin authentication (simple for demo purposes)
-export const ADMIN_KEY = "admin123"; // In a real app, this would never be hardcoded
+// Service request functionality
+export interface ServiceRequest {
+  id: string;
+  email: string;
+  service: string;
+  plan: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+}
+
+export const submitServiceRequest = async (
+  request: Omit<ServiceRequest, "id" | "status" | "createdAt">
+): Promise<ServiceRequest> => {
+  try {
+    const docRef = await addDoc(collection(db, "serviceRequests"), {
+      ...request,
+      status: "pending",
+      createdAt: serverTimestamp(),
+    });
+    
+    toast.success("Service request submitted successfully!");
+    
+    return {
+      id: docRef.id,
+      ...request,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("Error submitting service request:", error);
+    toast.error("Failed to submit service request");
+    throw error;
+  }
+};
+
+export const getAllServiceRequests = async (): Promise<ServiceRequest[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "serviceRequests"));
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        email: data.email,
+        service: data.service,
+        plan: data.plan,
+        reason: data.reason,
+        status: data.status,
+        createdAt: data.createdAt.toDate().toISOString(),
+      };
+    });
+  } catch (error) {
+    console.error("Error getting service requests:", error);
+    toast.error("Failed to fetch service requests");
+    return [];
+  }
+};
+
+export const updateServiceRequestStatus = async (
+  id: string,
+  status: "approved" | "rejected"
+): Promise<boolean> => {
+  try {
+    await updateDoc(doc(db, "serviceRequests", id), { status });
+    toast.success(`Service request ${status}`);
+    return true;
+  } catch (error) {
+    console.error("Error updating service request:", error);
+    toast.error("Failed to update service request");
+    return false;
+  }
+};
+
+// Admin authentication
+export const ADMIN_KEY = "admin123";
 
 export const verifyAdminKey = (key: string): boolean => {
   return key === ADMIN_KEY;

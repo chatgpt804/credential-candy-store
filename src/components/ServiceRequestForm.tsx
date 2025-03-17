@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
+import { submitServiceRequest } from "@/lib/store";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -63,13 +64,14 @@ const ServiceRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
-      // In a real app, this would send the data to a backend API
-      console.log("Service request submitted:", values);
+      // Submit service request to Firebase
+      await submitServiceRequest({
+        email: values.email,
+        service: values.service,
+        plan: values.plan,
+        reason: values.reason,
+      });
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success("Service request submitted successfully");
       form.reset();
       if (onSuccess) onSuccess();
     } catch (error) {

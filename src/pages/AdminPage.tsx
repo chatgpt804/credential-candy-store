@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import AccountForm from "@/components/admin/AccountForm";
 import CookieForm from "@/components/admin/CookieForm";
+import RequestsPanel from "@/components/admin/RequestsPanel";
 import { 
   getAllAccounts, 
   getAllCookies, 
@@ -38,7 +39,8 @@ import {
   Trash2, 
   Edit, 
   AlertTriangle,
-  Check
+  Check,
+  MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -169,7 +171,7 @@ const AdminPage = () => {
               Admin Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Manage accounts, cookies, and monitor platform activity
+              Manage accounts, cookies, service requests, and monitor platform activity
             </p>
           </div>
           <div className="mt-4 md:mt-0 flex space-x-4">
@@ -183,9 +185,10 @@ const AdminPage = () => {
         </div>
 
         <Tabs defaultValue="accounts" className="space-y-4">
-          <TabsList className="grid w-full md:w-auto grid-cols-2">
+          <TabsList className="grid w-full md:w-auto grid-cols-3">
             <TabsTrigger value="accounts">Accounts</TabsTrigger>
             <TabsTrigger value="cookies">Cookies</TabsTrigger>
+            <TabsTrigger value="requests">Service Requests</TabsTrigger>
           </TabsList>
 
           <TabsContent value="accounts" className="space-y-4">
@@ -382,6 +385,10 @@ const AdminPage = () => {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="requests" className="space-y-4">
+            <RequestsPanel />
+          </TabsContent>
         </Tabs>
 
         <div className="mt-12 bg-secondary/50 rounded-xl p-6">
@@ -404,7 +411,7 @@ const AdminPage = () => {
             </li>
             <li className="flex items-center">
               <div className="h-2 w-2 rounded-full bg-primary mr-2"></div>
-              <span>Monitor expiration dates</span>
+              <span>Handle service requests</span>
             </li>
           </ul>
         </div>

@@ -58,17 +58,24 @@ const AccountForm = ({ account, onSubmitSuccess }: AccountFormProps) => {
       if (account) {
         // Update existing account
         await updateAccount(account.id, {
-          ...values,
+          service: values.service,
+          email: values.email,
+          password: values.password,
+          status: values.status,
           expiresOn: values.expiresOn ? new Date(values.expiresOn).toISOString() : null,
         });
       } else {
         // Add new account
         await addAccount({
-          ...values,
+          service: values.service,
+          email: values.email,
+          password: values.password,
+          status: values.status,
           expiresOn: values.expiresOn ? new Date(values.expiresOn).toISOString() : null,
         });
       }
       onSubmitSuccess();
+      toast.success(account ? "Account updated successfully" : "Account added successfully");
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to save account");

@@ -1,6 +1,7 @@
-
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
+import ServiceRequestForm from "@/components/ServiceRequestForm";
 import { Button } from "@/components/ui/button";
 import { 
   PlaySquare, 
@@ -11,10 +12,20 @@ import {
   RefreshCw,
   Copy,
   Clock,
+  MessageSquare
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const serviceCards = [
     {
@@ -188,6 +199,40 @@ const Index = () => {
                 <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Request Service Section */}
+      <section className="py-20 bg-gradient-to-b from-transparent to-secondary/20">
+        <div className="container px-4 sm:px-6">
+          <div className="flex flex-col items-center text-center mb-16">
+            <h2 className="text-3xl font-bold tracking-tight">
+              Don't See What You Need?
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-3xl">
+              Request a new service and we'll try to add it to our collection.
+            </p>
+          </div>
+          
+          <div className="max-w-lg mx-auto">
+            <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full" size="lg">
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  Request a New Service
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Request a New Service</DialogTitle>
+                  <DialogDescription>
+                    Let us know which service you'd like us to add to our collection.
+                  </DialogDescription>
+                </DialogHeader>
+                <ServiceRequestForm onSuccess={() => setRequestDialogOpen(false)} />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </section>

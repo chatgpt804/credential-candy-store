@@ -56,10 +56,14 @@ const CookieForm = ({ cookie, onSubmitSuccess }: CookieFormProps) => {
     setIsLoading(true);
     try {
       await addCookie({
-        ...values,
+        name: values.name,
+        value: values.value,
+        domain: values.domain,
+        status: values.status,
         expiresOn: values.expiresOn ? new Date(values.expiresOn).toISOString() : null,
       });
       onSubmitSuccess();
+      toast.success("Cookie added successfully");
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to save cookie");

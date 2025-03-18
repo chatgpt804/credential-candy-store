@@ -80,7 +80,10 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    toast.success("Signed out successfully");
+    toast({
+      title: "Signed out",
+      description: "You have been signed out successfully"
+    });
     navigate("/");
   };
 

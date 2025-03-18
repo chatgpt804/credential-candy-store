@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mail, Lock, CheckCircle, AlertCircle } from "lucide-react";
 
 const AuthPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailConfirmationError, setEmailConfirmationError] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as any)?.from || "/";
@@ -19,6 +21,7 @@ const AuthPage = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setEmailConfirmationError(false);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -26,7 +29,13 @@ const AuthPage = () => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          setEmailConfirmationError(true);
+          throw new Error("Please check your email and confirm your account before signing in.");
+        }
+        throw error;
+      }
       toast.success("Successfully signed in!");
       navigate(from);
     } catch (error: any) {
@@ -55,6 +64,23 @@ const AuthPage = () => {
     }
   };
 
+  const resendConfirmation = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      
+      if (error) throw error;
+      toast.success("Confirmation email resent. Please check your inbox.");
+    } catch (error: any) {
+      toast.error(error.message || "Error resending confirmation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md space-y-8">
@@ -72,6 +98,23 @@ const AuthPage = () => {
           </TabsList>
           
           <TabsContent value="signin">
+            {emailConfirmationError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4 mr-2" />
+                <AlertDescription>
+                  Your email is not confirmed yet. 
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto ml-1" 
+                    onClick={resendConfirmation}
+                    disabled={loading}
+                  >
+                    Resend confirmation email
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <div className="relative">

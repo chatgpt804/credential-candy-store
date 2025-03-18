@@ -58,8 +58,8 @@ const AccountCard = ({ account, isAdmin = false, onUpdate }: AccountCardProps) =
       "monthly": "Monthly",
       "annual": "Annual",
       "video_only": "Video Only",
-      // Steam plans
-      "standard": "Standard Account"
+      // Steam plans - using different name to avoid duplication
+      "steam_standard": "Standard Account"
     };
     
     return planNames[account.plan] || account.plan;

@@ -17,6 +17,7 @@ export type Database = {
           id: string
           last_used: string | null
           password: string
+          plan: string | null
           service: string
           status: string
           usage_count: number | null
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           last_used?: string | null
           password: string
+          plan?: string | null
           service: string
           status?: string
           usage_count?: number | null
@@ -39,6 +41,7 @@ export type Database = {
           id?: string
           last_used?: string | null
           password?: string
+          plan?: string | null
           service?: string
           status?: string
           usage_count?: number | null

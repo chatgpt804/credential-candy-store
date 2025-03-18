@@ -1,18 +1,6 @@
 
 import { toast } from "sonner";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-  Timestamp,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "./firebase";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Account {
   id: string;
@@ -60,33 +48,31 @@ const canUserClaim = (): boolean => {
   return recentClaims.length === 0;
 };
 
-// Convert Firestore document to Account
-const documentToAccount = (doc: any): Account => {
-  const data = doc.data();
+// Convert Supabase response to Account
+const supabaseToAccount = (item: any): Account => {
   return {
-    id: doc.id,
-    service: data.service,
-    email: data.email,
-    password: data.password,
-    status: data.status,
-    lastUsed: data.lastUsed ? data.lastUsed.toDate().toISOString() : null,
-    addedOn: data.addedOn.toDate().toISOString(),
-    expiresOn: data.expiresOn ? data.expiresOn.toDate().toISOString() : null,
-    usageCount: data.usageCount || 0,
+    id: item.id,
+    service: item.service,
+    email: item.email,
+    password: item.password,
+    status: item.status,
+    lastUsed: item.last_used ? new Date(item.last_used).toISOString() : null,
+    addedOn: new Date(item.added_on).toISOString(),
+    expiresOn: item.expires_on ? new Date(item.expires_on).toISOString() : null,
+    usageCount: item.usage_count || 0,
   };
 };
 
-// Convert Firestore document to Cookie
-const documentToCookie = (doc: any): Cookie => {
-  const data = doc.data();
+// Convert Supabase response to Cookie
+const supabaseToCookie = (item: any): Cookie => {
   return {
-    id: doc.id,
-    name: data.name,
-    value: data.value,
-    domain: data.domain,
-    addedOn: data.addedOn.toDate().toISOString(),
-    expiresOn: data.expiresOn ? data.expiresOn.toDate().toISOString() : null,
-    status: data.status,
+    id: item.id,
+    name: item.name,
+    value: item.value,
+    domain: item.domain,
+    addedOn: new Date(item.added_on).toISOString(),
+    expiresOn: item.expires_on ? new Date(item.expires_on).toISOString() : null,
+    status: item.status,
   };
 };
 
@@ -95,13 +81,14 @@ export const getAccountsByService = async (
   service: string
 ): Promise<Account[]> => {
   try {
-    const q = query(
-      collection(db, "accounts"), 
-      where("service", "==", service),
-      where("status", "!=", "expired")
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(documentToAccount);
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('service', service)
+      .neq('status', 'expired');
+    
+    if (error) throw error;
+    return data ? data.map(supabaseToAccount) : [];
   } catch (error) {
     console.error("Error getting accounts by service:", error);
     toast.error("Failed to fetch accounts");
@@ -111,8 +98,12 @@ export const getAccountsByService = async (
 
 export const getAllAccounts = async (): Promise<Account[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, "accounts"));
-    return querySnapshot.docs.map(documentToAccount);
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('*');
+    
+    if (error) throw error;
+    return data ? data.map(supabaseToAccount) : [];
   } catch (error) {
     console.error("Error getting all accounts:", error);
     toast.error("Failed to fetch accounts");
@@ -122,12 +113,13 @@ export const getAllAccounts = async (): Promise<Account[]> => {
 
 export const getAllCookies = async (): Promise<Cookie[]> => {
   try {
-    const q = query(
-      collection(db, "cookies"),
-      where("status", "!=", "expired")
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(documentToCookie);
+    const { data, error } = await supabase
+      .from('cookies')
+      .select('*')
+      .neq('status', 'expired');
+    
+    if (error) throw error;
+    return data ? data.map(supabaseToCookie) : [];
   } catch (error) {
     console.error("Error getting all cookies:", error);
     toast.error("Failed to fetch cookies");
@@ -144,21 +136,32 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
       return null;
     }
 
-    const accountRef = doc(db, "accounts", id);
-    const accountDoc = await getDocs(query(collection(db, "accounts"), where("__name__", "==", id)));
+    // First get the account
+    const { data: accountData, error: accountError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('id', id)
+      .single();
     
-    if (accountDoc.empty) {
+    if (accountError) throw accountError;
+    if (!accountData) {
       toast.error("Account not found");
       return null;
     }
     
-    const account = documentToAccount(accountDoc.docs[0]);
+    const account = supabaseToAccount(accountData);
     
     // Update account usage
-    await updateDoc(accountRef, {
-      lastUsed: serverTimestamp(),
-      usageCount: (account.usageCount || 0) + 1,
-    });
+    const now = new Date();
+    const { error: updateError } = await supabase
+      .from('accounts')
+      .update({
+        last_used: now.toISOString(),
+        usage_count: (account.usageCount || 0) + 1
+      })
+      .eq('id', id);
+    
+    if (updateError) throw updateError;
     
     // Track the claim
     addUserClaim();
@@ -168,7 +171,7 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
     // Return updated account
     return {
       ...account,
-      lastUsed: new Date().toISOString(),
+      lastUsed: now.toISOString(),
       usageCount: account.usageCount + 1,
     };
   } catch (error) {
@@ -180,23 +183,23 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
 
 export const addAccount = async (account: Omit<Account, "id" | "addedOn" | "lastUsed" | "usageCount">): Promise<Account> => {
   try {
-    const docRef = await addDoc(collection(db, "accounts"), {
-      ...account,
-      addedOn: serverTimestamp(),
-      lastUsed: null,
-      usageCount: 0,
-      expiresOn: account.expiresOn ? Timestamp.fromDate(new Date(account.expiresOn)) : null,
-    });
+    const { data, error } = await supabase
+      .from('accounts')
+      .insert({
+        service: account.service,
+        email: account.email,
+        password: account.password,
+        status: account.status,
+        expires_on: account.expiresOn ? new Date(account.expiresOn).toISOString() : null,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
     
     toast.success("Account added successfully!");
     
-    return {
-      id: docRef.id,
-      ...account,
-      addedOn: new Date().toISOString(),
-      lastUsed: null,
-      usageCount: 0,
-    };
+    return supabaseToAccount(data);
   } catch (error) {
     console.error("Error adding account:", error);
     toast.error("Failed to add account");
@@ -206,25 +209,26 @@ export const addAccount = async (account: Omit<Account, "id" | "addedOn" | "last
 
 export const updateAccount = async (id: string, updates: Partial<Account>): Promise<Account | null> => {
   try {
-    const accountRef = doc(db, "accounts", id);
+    const updateData: any = {};
     
-    // Convert date strings to Firestore timestamps
-    const firestoreUpdates: any = { ...updates };
-    if (updates.expiresOn) {
-      firestoreUpdates.expiresOn = Timestamp.fromDate(new Date(updates.expiresOn));
-    }
+    if (updates.service) updateData.service = updates.service;
+    if (updates.email) updateData.email = updates.email;
+    if (updates.password) updateData.password = updates.password;
+    if (updates.status) updateData.status = updates.status;
+    if (updates.expiresOn) updateData.expires_on = new Date(updates.expiresOn).toISOString();
     
-    await updateDoc(accountRef, firestoreUpdates);
+    const { data, error } = await supabase
+      .from('accounts')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
     
     toast.success("Account updated successfully!");
     
-    // Fetch the updated account
-    const accountDoc = await getDocs(query(collection(db, "accounts"), where("__name__", "==", id)));
-    if (accountDoc.empty) {
-      return null;
-    }
-    
-    return documentToAccount(accountDoc.docs[0]);
+    return supabaseToAccount(data);
   } catch (error) {
     console.error("Error updating account:", error);
     toast.error("Failed to update account");
@@ -234,7 +238,13 @@ export const updateAccount = async (id: string, updates: Partial<Account>): Prom
 
 export const deleteAccount = async (id: string): Promise<boolean> => {
   try {
-    await deleteDoc(doc(db, "accounts", id));
+    const { error } = await supabase
+      .from('accounts')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    
     toast.success("Account deleted successfully!");
     return true;
   } catch (error) {
@@ -246,19 +256,23 @@ export const deleteAccount = async (id: string): Promise<boolean> => {
 
 export const addCookie = async (cookie: Omit<Cookie, "id" | "addedOn">): Promise<Cookie> => {
   try {
-    const docRef = await addDoc(collection(db, "cookies"), {
-      ...cookie,
-      addedOn: serverTimestamp(),
-      expiresOn: cookie.expiresOn ? Timestamp.fromDate(new Date(cookie.expiresOn)) : null,
-    });
+    const { data, error } = await supabase
+      .from('cookies')
+      .insert({
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        status: cookie.status,
+        expires_on: cookie.expiresOn ? new Date(cookie.expiresOn).toISOString() : null,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
     
     toast.success("Cookie added successfully!");
     
-    return {
-      id: docRef.id,
-      ...cookie,
-      addedOn: new Date().toISOString(),
-    };
+    return supabaseToCookie(data);
   } catch (error) {
     console.error("Error adding cookie:", error);
     toast.error("Failed to add cookie");
@@ -268,7 +282,13 @@ export const addCookie = async (cookie: Omit<Cookie, "id" | "addedOn">): Promise
 
 export const deleteCookie = async (id: string): Promise<boolean> => {
   try {
-    await deleteDoc(doc(db, "cookies", id));
+    const { error } = await supabase
+      .from('cookies')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    
     toast.success("Cookie deleted successfully!");
     return true;
   } catch (error) {
@@ -293,19 +313,30 @@ export const submitServiceRequest = async (
   request: Omit<ServiceRequest, "id" | "status" | "createdAt">
 ): Promise<ServiceRequest> => {
   try {
-    const docRef = await addDoc(collection(db, "serviceRequests"), {
-      ...request,
-      status: "pending",
-      createdAt: serverTimestamp(),
-    });
+    const { data, error } = await supabase
+      .from('service_requests')
+      .insert({
+        email: request.email,
+        service: request.service,
+        plan: request.plan,
+        reason: request.reason,
+        status: 'pending'
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
     
     toast.success("Service request submitted successfully!");
     
     return {
-      id: docRef.id,
-      ...request,
-      status: "pending",
-      createdAt: new Date().toISOString(),
+      id: data.id,
+      email: data.email,
+      service: data.service,
+      plan: data.plan,
+      reason: data.reason,
+      status: data.status,
+      createdAt: new Date(data.created_at).toISOString(),
     };
   } catch (error) {
     console.error("Error submitting service request:", error);
@@ -316,19 +347,21 @@ export const submitServiceRequest = async (
 
 export const getAllServiceRequests = async (): Promise<ServiceRequest[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, "serviceRequests"));
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        email: data.email,
-        service: data.service,
-        plan: data.plan,
-        reason: data.reason,
-        status: data.status,
-        createdAt: data.createdAt.toDate().toISOString(),
-      };
-    });
+    const { data, error } = await supabase
+      .from('service_requests')
+      .select('*');
+    
+    if (error) throw error;
+    
+    return data ? data.map(item => ({
+      id: item.id,
+      email: item.email,
+      service: item.service,
+      plan: item.plan,
+      reason: item.reason,
+      status: item.status,
+      createdAt: new Date(item.created_at).toISOString(),
+    })) : [];
   } catch (error) {
     console.error("Error getting service requests:", error);
     toast.error("Failed to fetch service requests");
@@ -341,7 +374,13 @@ export const updateServiceRequestStatus = async (
   status: "approved" | "rejected"
 ): Promise<boolean> => {
   try {
-    await updateDoc(doc(db, "serviceRequests", id), { status });
+    const { error } = await supabase
+      .from('service_requests')
+      .update({ status })
+      .eq('id', id);
+    
+    if (error) throw error;
+    
     toast.success(`Service request ${status}`);
     return true;
   } catch (error) {

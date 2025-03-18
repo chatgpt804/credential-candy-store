@@ -9,7 +9,102 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          added_on: string
+          email: string
+          expires_on: string | null
+          id: string
+          last_used: string | null
+          password: string
+          service: string
+          status: string
+          usage_count: number | null
+        }
+        Insert: {
+          added_on?: string
+          email: string
+          expires_on?: string | null
+          id?: string
+          last_used?: string | null
+          password: string
+          service: string
+          status?: string
+          usage_count?: number | null
+        }
+        Update: {
+          added_on?: string
+          email?: string
+          expires_on?: string | null
+          id?: string
+          last_used?: string | null
+          password?: string
+          service?: string
+          status?: string
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
+      cookies: {
+        Row: {
+          added_on: string
+          domain: string
+          expires_on: string | null
+          id: string
+          name: string
+          status: string
+          value: string
+        }
+        Insert: {
+          added_on?: string
+          domain: string
+          expires_on?: string | null
+          id?: string
+          name: string
+          status?: string
+          value: string
+        }
+        Update: {
+          added_on?: string
+          domain?: string
+          expires_on?: string | null
+          id?: string
+          name?: string
+          status?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      service_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          plan: string
+          reason: string
+          service: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          plan: string
+          reason: string
+          service: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          plan?: string
+          reason?: string
+          service?: string
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

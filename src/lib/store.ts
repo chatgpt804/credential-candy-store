@@ -12,6 +12,7 @@ export interface Account {
   addedOn: string;
   expiresOn: string | null;
   usageCount: number;
+  plan?: string;
 }
 
 export interface Cookie {
@@ -55,11 +56,12 @@ const supabaseToAccount = (item: any): Account => {
     service: item.service,
     email: item.email,
     password: item.password,
-    status: item.status,
+    status: item.status as "active" | "expiring" | "expired",
     lastUsed: item.last_used ? new Date(item.last_used).toISOString() : null,
     addedOn: new Date(item.added_on).toISOString(),
     expiresOn: item.expires_on ? new Date(item.expires_on).toISOString() : null,
     usageCount: item.usage_count || 0,
+    plan: item.plan || null,
   };
 };
 
@@ -72,7 +74,7 @@ const supabaseToCookie = (item: any): Cookie => {
     domain: item.domain,
     addedOn: new Date(item.added_on).toISOString(),
     expiresOn: item.expires_on ? new Date(item.expires_on).toISOString() : null,
-    status: item.status,
+    status: item.status as "active" | "expiring" | "expired",
   };
 };
 
@@ -191,6 +193,7 @@ export const addAccount = async (account: Omit<Account, "id" | "addedOn" | "last
         password: account.password,
         status: account.status,
         expires_on: account.expiresOn ? new Date(account.expiresOn).toISOString() : null,
+        plan: account.plan || null,
       })
       .select()
       .single();
@@ -216,6 +219,7 @@ export const updateAccount = async (id: string, updates: Partial<Account>): Prom
     if (updates.password) updateData.password = updates.password;
     if (updates.status) updateData.status = updates.status;
     if (updates.expiresOn) updateData.expires_on = new Date(updates.expiresOn).toISOString();
+    if (updates.plan) updateData.plan = updates.plan;
     
     const { data, error } = await supabase
       .from('accounts')
@@ -335,7 +339,7 @@ export const submitServiceRequest = async (
       service: data.service,
       plan: data.plan,
       reason: data.reason,
-      status: data.status,
+      status: data.status as "pending" | "approved" | "rejected",
       createdAt: new Date(data.created_at).toISOString(),
     };
   } catch (error) {
@@ -359,7 +363,7 @@ export const getAllServiceRequests = async (): Promise<ServiceRequest[]> => {
       service: item.service,
       plan: item.plan,
       reason: item.reason,
-      status: item.status,
+      status: item.status as "pending" | "approved" | "rejected",
       createdAt: new Date(item.created_at).toISOString(),
     })) : [];
   } catch (error) {

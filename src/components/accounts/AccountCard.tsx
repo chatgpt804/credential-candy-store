@@ -40,6 +40,33 @@ const AccountCard = ({ account, isAdmin = false, onUpdate }: AccountCardProps) =
   const displayEmail = isRevealed ? account.email : generateMaskedDisplay(account.email);
   const displayPassword = isRevealed ? account.password : "••••••••••";
 
+  // Define plan display names
+  const getPlanDisplayName = () => {
+    if (!account.plan) return null;
+    
+    const planNames: Record<string, string> = {
+      // Netflix plans
+      "basic": "Basic Plan",
+      "standard": "Standard Plan",
+      "premium": "Premium Plan",
+      // Crunchyroll plans
+      "free": "Free Plan",
+      "fan": "Fan",
+      "mega_fan": "Mega Fan",
+      "ultimate_fan": "Ultimate Fan",
+      // Amazon plans
+      "monthly": "Monthly",
+      "annual": "Annual",
+      "video_only": "Video Only",
+      // Steam plans
+      "standard": "Standard Account"
+    };
+    
+    return planNames[account.plan] || account.plan;
+  };
+
+  const planDisplayName = getPlanDisplayName();
+
   return (
     <div className="service-card animate-scale-in group overflow-hidden">
       <div className="flex justify-between items-start mb-4">
@@ -74,6 +101,13 @@ const AccountCard = ({ account, isAdmin = false, onUpdate }: AccountCardProps) =
             </Button>
           </div>
         </div>
+
+        {planDisplayName && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Plan:</span>
+            <span className="text-sm font-medium">{planDisplayName}</span>
+          </div>
+        )}
 
         {isAdmin && (
           <div className="flex items-center justify-between">

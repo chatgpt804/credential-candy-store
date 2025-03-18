@@ -29,6 +29,7 @@ const formSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   status: z.enum(["active", "expiring", "expired"]),
   expiresOn: z.string().optional(),
+  plan: z.string().optional(),
 });
 
 interface AccountFormProps {
@@ -38,6 +39,7 @@ interface AccountFormProps {
 
 const AccountForm = ({ account, onSubmitSuccess }: AccountFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedService, setSelectedService] = useState(account?.service || "netflix");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,8 +51,40 @@ const AccountForm = ({ account, onSubmitSuccess }: AccountFormProps) => {
       expiresOn: account?.expiresOn 
         ? new Date(account.expiresOn).toISOString().split("T")[0] 
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      plan: account?.plan || "",
     },
   });
+
+  // Service plan options
+  const servicePlans = {
+    netflix: [
+      { id: "basic", name: "Basic Plan" },
+      { id: "standard", name: "Standard Plan" },
+      { id: "premium", name: "Premium Plan" }
+    ],
+    crunchyroll: [
+      { id: "free", name: "Free Plan" },
+      { id: "fan", name: "Crunchyroll Fan" },
+      { id: "mega_fan", name: "Crunchyroll Mega Fan" },
+      { id: "ultimate_fan", name: "Crunchyroll Ultimate Fan" }
+    ],
+    amazon: [
+      { id: "monthly", name: "Amazon Prime Monthly" },
+      { id: "annual", name: "Amazon Prime Annual" },
+      { id: "video_only", name: "Prime Video Only" }
+    ],
+    steam: [
+      { id: "standard", name: "Standard Account" }
+    ]
+  };
+
+  // Watch for service changes to update plan options
+  const watchService = form.watch("service");
+  if (watchService !== selectedService) {
+    setSelectedService(watchService);
+    // Reset the plan when service changes
+    form.setValue("plan", "");
+  }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
@@ -63,6 +97,7 @@ const AccountForm = ({ account, onSubmitSuccess }: AccountFormProps) => {
           password: values.password,
           status: values.status,
           expiresOn: values.expiresOn ? new Date(values.expiresOn).toISOString() : null,
+          plan: values.plan,
         });
       } else {
         // Add new account
@@ -72,6 +107,7 @@ const AccountForm = ({ account, onSubmitSuccess }: AccountFormProps) => {
           password: values.password,
           status: values.status,
           expiresOn: values.expiresOn ? new Date(values.expiresOn).toISOString() : null,
+          plan: values.plan,
         });
       }
       onSubmitSuccess();
@@ -137,6 +173,32 @@ const AccountForm = ({ account, onSubmitSuccess }: AccountFormProps) => {
               <FormControl>
                 <Input placeholder="••••••••" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="plan"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Plan</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                value={field.value || ""}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a plan" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {servicePlans[selectedService as keyof typeof servicePlans].map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

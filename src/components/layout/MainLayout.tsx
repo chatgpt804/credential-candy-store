@@ -1,6 +1,6 @@
 
-import { ReactNode, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { ReactNode, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -9,11 +9,23 @@ import {
   GamepadIcon, 
   ShoppingBag, 
   Cookie, 
-  Lock, 
+  Lock,
   Menu, 
-  X 
+  X,
+  LogOut,
+  LogIn,
+  User
 } from "lucide-react";
-import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -22,11 +34,34 @@ interface MainLayoutProps {
 const MainLayout = ({ children }: MainLayoutProps) => {
   const { pathname } = useLocation();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     // Close mobile menu when route changes
     setMobileMenuOpen(false);
+
+    // Get current user
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setEmail(data.user.email);
+      }
+    };
+    
+    getCurrentUser();
+
+    // Set up auth state listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setEmail(session?.user?.email || null);
+      }
+    );
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [pathname]);
 
   const navigationItems = [
@@ -41,6 +76,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out successfully");
+    navigate("/");
   };
 
   return (
@@ -73,6 +114,33 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               </Link>
             ))}
           </nav>
+
+          {/* Auth Actions */}
+          <div className="hidden md:flex items-center space-x-2">
+            {email ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <User size={16} />
+                    <span className="max-w-[120px] truncate">{email}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer">
+                    <LogOut size={16} />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => navigate("/auth")} className="gap-2">
+                <LogIn size={16} />
+                <span>Sign in</span>
+              </Button>
+            )}
+          </div>
 
           {/* Mobile Menu Button */}
           <button
@@ -108,6 +176,33 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 </Link>
               );
             })}
+            
+            {/* Mobile Auth Actions */}
+            <div className="pt-4 border-t">
+              {email ? (
+                <>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Signed in as: <span className="font-medium text-foreground">{email}</span>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center space-x-3 px-3 py-4 rounded-md transition-colors text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  >
+                    <LogOut size={20} />
+                    <span>Sign out</span>
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="flex items-center space-x-3 px-3 py-4 rounded-md transition-colors text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LogIn size={20} />
+                  <span>Sign in</span>
+                </Link>
+              )}
+            </div>
           </nav>
         </div>
       )}

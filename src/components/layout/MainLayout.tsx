@@ -1,4 +1,3 @@
-
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -9,12 +8,11 @@ import {
   GamepadIcon, 
   ShoppingBag, 
   Cookie, 
-  Lock,
-  Menu, 
-  X,
   LogOut,
   LogIn,
-  User
+  User,
+  Menu, 
+  X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -64,6 +62,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     };
   }, [pathname]);
 
+  // Updated navigation items - removed Admin link
   const navigationItems = [
     { name: "Home", href: "/", icon: Home },
     { name: "Netflix", href: "/accounts/netflix", icon: PlaySquare },
@@ -71,7 +70,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { name: "Steam", href: "/accounts/steam", icon: GamepadIcon },
     { name: "Amazon Prime", href: "/accounts/amazon", icon: ShoppingBag },
     { name: "Netflix Cookies", href: "/cookies", icon: Cookie },
-    { name: "Admin", href: "/admin", icon: Lock },
   ];
 
   const toggleMobileMenu = () => {

@@ -1,18 +1,28 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import AccountForm from "@/components/admin/AccountForm";
 import CookieForm from "@/components/admin/CookieForm";
+import GameForm from "@/components/admin/GameForm";
 import RequestsPanel from "@/components/admin/RequestsPanel";
 import { 
   getAllAccounts, 
   getAllCookies, 
   deleteAccount, 
-  deleteCookie, 
+  deleteCookie,
+  deleteGame,
   ADMIN_KEY,
-  verifyAdminKey
+  verifyAdminKey,
+  Game
 } from "@/lib/store";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +50,8 @@ import {
   Edit, 
   AlertTriangle,
   Check,
-  MessageSquare
+  MessageSquare,
+  Gamepad
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,10 +60,12 @@ const AdminPage = () => {
   const [adminKey, setAdminKey] = useState("");
   const [accountFormOpen, setAccountFormOpen] = useState(false);
   const [cookieFormOpen, setCookieFormOpen] = useState(false);
+  const [gameFormOpen, setGameFormOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
 
-  // Check if admin key is stored in localStorage
   useEffect(() => {
     const storedKey = localStorage.getItem("admin_key");
     if (storedKey && verifyAdminKey(storedKey)) {
@@ -116,8 +129,39 @@ const AdminPage = () => {
   const handleFormSuccess = () => {
     setAccountFormOpen(false);
     setCookieFormOpen(false);
+    setGameFormOpen(false);
     setSelectedAccount(null);
+    setSelectedGame(null);
     handleRefresh();
+  };
+
+  const toggleExpandAccount = (accountId: string) => {
+    const newExpandedAccounts = new Set(expandedAccounts);
+    if (newExpandedAccounts.has(accountId)) {
+      newExpandedAccounts.delete(accountId);
+    } else {
+      newExpandedAccounts.add(accountId);
+    }
+    setExpandedAccounts(newExpandedAccounts);
+  };
+
+  const handleAddGame = (account: any) => {
+    setSelectedAccount(account);
+    setSelectedGame(null);
+    setGameFormOpen(true);
+  };
+
+  const handleEditGame = (account: any, game: Game) => {
+    setSelectedAccount(account);
+    setSelectedGame(game);
+    setGameFormOpen(true);
+  };
+
+  const handleDeleteGame = async (gameId: string) => {
+    if (confirm("Are you sure you want to delete this game?")) {
+      await deleteGame(gameId);
+      handleRefresh();
+    }
   };
 
   if (!isAuthenticated) {
@@ -222,74 +266,184 @@ const AdminPage = () => {
               </Dialog>
             </div>
 
+            <Dialog open={gameFormOpen} onOpenChange={setGameFormOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>
+                    {selectedGame ? "Edit Game" : "Add New Game"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {selectedGame
+                      ? "Update the details for this game"
+                      : "Add a game to this account"}
+                  </DialogDescription>
+                </DialogHeader>
+                {selectedAccount && (
+                  <GameForm 
+                    accountId={selectedAccount.id}
+                    game={selectedGame || undefined}
+                    onSubmitSuccess={handleFormSuccess}
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
+
             {isLoadingAccounts ? (
               <div className="text-center py-10">
                 <p>Loading accounts...</p>
               </div>
             ) : accounts && accounts.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-secondary">
-                      <th className="text-left p-3 rounded-tl-md">Service</th>
-                      <th className="text-left p-3">Email</th>
-                      <th className="text-left p-3">Status</th>
-                      <th className="text-left p-3">Added On</th>
-                      <th className="text-left p-3">Expires On</th>
-                      <th className="text-left p-3">Uses</th>
-                      <th className="text-left p-3 rounded-tr-md">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Added On</TableHead>
+                      <TableHead>Expires On</TableHead>
+                      <TableHead>Uses</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y">
                     {accounts.map((account) => (
-                      <tr key={account.id} className="hover:bg-secondary/50">
-                        <td className="p-3 capitalize">{account.service}</td>
-                        <td className="p-3">{account.email}</td>
-                        <td className="p-3">
-                          <span
-                            className={
-                              account.status === "active"
-                                ? "status-badge available"
-                                : account.status === "expiring"
-                                ? "status-badge limited"
-                                : "status-badge unavailable"
-                            }
-                          >
-                            {account.status === "active" && "Active"}
-                            {account.status === "expiring" && "Expiring Soon"}
-                            {account.status === "expired" && "Expired"}
-                          </span>
-                        </td>
-                        <td className="p-3">{new Date(account.addedOn).toLocaleDateString()}</td>
-                        <td className="p-3">
-                          {account.expiresOn
-                            ? new Date(account.expiresOn).toLocaleDateString()
-                            : "N/A"}
-                        </td>
-                        <td className="p-3">{account.usageCount}</td>
-                        <td className="p-3">
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditAccount(account)}
+                      <>
+                        <TableRow key={account.id} className="hover:bg-secondary/50">
+                          <TableCell className="capitalize">
+                            <div className="flex items-center">
+                              {account.service}
+                              {account.service === 'steam' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleExpandAccount(account.id)}
+                                  className="ml-2"
+                                >
+                                  <Gamepad className="h-4 w-4 mr-1" />
+                                  {expandedAccounts.has(account.id) ? "Hide Games" : "Show Games"}
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{account.email}</TableCell>
+                          <TableCell>
+                            <span
+                              className={
+                                account.status === "active"
+                                  ? "status-badge available"
+                                  : account.status === "expiring"
+                                  ? "status-badge limited"
+                                  : "status-badge unavailable"
+                              }
                             >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => handleDeleteAccount(account.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                              {account.status === "active" && "Active"}
+                              {account.status === "expiring" && "Expiring Soon"}
+                              {account.status === "expired" && "Expired"}
+                            </span>
+                          </TableCell>
+                          <TableCell>{new Date(account.addedOn).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {account.expiresOn
+                              ? new Date(account.expiresOn).toLocaleDateString()
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>{account.usageCount}</TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditAccount(account)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              {account.service === 'steam' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleAddGame(account)}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive"
+                                onClick={() => handleDeleteAccount(account.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {account.service === 'steam' && expandedAccounts.has(account.id) && (
+                          <TableRow key={`${account.id}-games`}>
+                            <TableCell colSpan={7} className="bg-muted/20 p-0">
+                              {account.games && account.games.length > 0 ? (
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="pl-8">Game Name</TableHead>
+                                      <TableHead>Description</TableHead>
+                                      <TableHead>Actions</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {account.games.map((game: Game) => (
+                                      <TableRow key={game.id}>
+                                        <TableCell className="pl-8">
+                                          <div className="flex items-center">
+                                            <Gamepad className="h-4 w-4 mr-2 text-primary" />
+                                            {game.name}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell>{game.description || "No description"}</TableCell>
+                                        <TableCell>
+                                          <div className="flex space-x-2">
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => handleEditGame(account, game)}
+                                            >
+                                              <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="text-destructive"
+                                              onClick={() => handleDeleteGame(game.id)}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              ) : (
+                                <div className="text-center py-4">
+                                  <p className="text-muted-foreground">No games added to this account.</p>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="mt-2"
+                                    onClick={() => handleAddGame(account)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Add Game
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <div className="text-center py-10 bg-muted rounded-md">
@@ -412,6 +566,10 @@ const AdminPage = () => {
             <li className="flex items-center">
               <div className="h-2 w-2 rounded-full bg-primary mr-2"></div>
               <span>Handle service requests</span>
+            </li>
+            <li className="flex items-center">
+              <div className="h-2 w-2 rounded-full bg-primary mr-2"></div>
+              <span>Manage Steam games</span>
             </li>
           </ul>
         </div>

@@ -32,6 +32,16 @@ export interface Cookie {
   status: "active" | "expiring" | "expired";
 }
 
+export interface ServiceRequest {
+  id: string;
+  email: string;
+  service: string;
+  plan: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+}
+
 const USER_CLAIM_KEY = "user_claim_timestamps";
 const CLAIM_LIMIT_HOURS = 12; // Hours between claims
 

@@ -6,7 +6,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import AccountCard from "@/components/accounts/AccountCard";
 import { getAccountsByService } from "@/lib/store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlaySquare, GamepadIcon, ShoppingBag } from "lucide-react";
+import { PlaySquare, GamepadIcon, ShoppingBag, GameController } from "lucide-react";
 
 const serviceDetails = {
   netflix: {

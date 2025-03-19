@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,6 +12,14 @@ export interface Account {
   expiresOn: string | null;
   usageCount: number;
   plan?: string;
+  games?: Game[];
+}
+
+export interface Game {
+  id: string;
+  name: string;
+  description?: string;
+  accountId: string;
 }
 
 export interface Cookie {
@@ -62,6 +69,17 @@ const supabaseToAccount = (item: any): Account => {
     expiresOn: item.expires_on ? new Date(item.expires_on).toISOString() : null,
     usageCount: item.usage_count || 0,
     plan: item.plan || null,
+    games: item.games || [],
+  };
+};
+
+// Convert Supabase response to Game
+const supabaseToGame = (item: any): Game => {
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description || null,
+    accountId: item.account_id,
   };
 };
 
@@ -85,12 +103,23 @@ export const getAccountsByService = async (
   try {
     const { data, error } = await supabase
       .from('accounts')
-      .select('*')
+      .select(`
+        *,
+        games (*)
+      `)
       .eq('service', service)
       .neq('status', 'expired');
     
     if (error) throw error;
-    return data ? data.map(supabaseToAccount) : [];
+    
+    if (data) {
+      return data.map(account => ({
+        ...supabaseToAccount(account),
+        games: account.games ? account.games.map(supabaseToGame) : [],
+      }));
+    }
+    
+    return [];
   } catch (error) {
     console.error("Error getting accounts by service:", error);
     toast.error("Failed to fetch accounts");
@@ -102,10 +131,21 @@ export const getAllAccounts = async (): Promise<Account[]> => {
   try {
     const { data, error } = await supabase
       .from('accounts')
-      .select('*');
+      .select(`
+        *,
+        games (*)
+      `);
     
     if (error) throw error;
-    return data ? data.map(supabaseToAccount) : [];
+    
+    if (data) {
+      return data.map(account => ({
+        ...supabaseToAccount(account),
+        games: account.games ? account.games.map(supabaseToGame) : [],
+      }));
+    }
+    
+    return [];
   } catch (error) {
     console.error("Error getting all accounts:", error);
     toast.error("Failed to fetch accounts");
@@ -183,7 +223,7 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
   }
 };
 
-export const addAccount = async (account: Omit<Account, "id" | "addedOn" | "lastUsed" | "usageCount">): Promise<Account> => {
+export const addAccount = async (account: Omit<Account, "id" | "addedOn" | "lastUsed" | "usageCount" | "games">): Promise<Account> => {
   try {
     const { data, error } = await supabase
       .from('accounts')
@@ -399,4 +439,73 @@ export const ADMIN_KEY = "admin123";
 
 export const verifyAdminKey = (key: string): boolean => {
   return key === ADMIN_KEY;
+};
+
+// New functions for games
+export const addGameToAccount = async (game: Omit<Game, "id">): Promise<Game> => {
+  try {
+    const { data, error } = await supabase
+      .from('games')
+      .insert({
+        name: game.name,
+        description: game.description,
+        account_id: game.accountId,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    toast.success("Game added successfully!");
+    
+    return supabaseToGame(data);
+  } catch (error) {
+    console.error("Error adding game:", error);
+    toast.error("Failed to add game");
+    throw error;
+  }
+};
+
+export const updateGame = async (id: string, updates: Partial<Game>): Promise<Game | null> => {
+  try {
+    const updateData: any = {};
+    
+    if (updates.name) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    
+    const { data, error } = await supabase
+      .from('games')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    toast.success("Game updated successfully!");
+    
+    return supabaseToGame(data);
+  } catch (error) {
+    console.error("Error updating game:", error);
+    toast.error("Failed to update game");
+    return null;
+  }
+};
+
+export const deleteGame = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('games')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    
+    toast.success("Game deleted successfully!");
+    return true;
+  } catch (error) {
+    console.error("Error deleting game:", error);
+    toast.error("Failed to delete game");
+    return false;
+  }
 };

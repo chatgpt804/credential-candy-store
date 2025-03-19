@@ -15,6 +15,10 @@ import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "./integrations/supabase/client";
 import { Toaster } from "sonner";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Create a client
+const queryClient = new QueryClient();
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -34,36 +38,38 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Toaster position="top-right" richColors />
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        
-        {/* Protected Routes */}
-        <Route path="/accounts/:service" element={
-          <ProtectedRoute>
-            <AccountsPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/cookies" element={
-          <ProtectedRoute>
-            <CookiesPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/admin" element={
-          <ProtectedRoute>
-            <AdminPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Toaster position="top-right" richColors />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          
+          {/* Protected Routes */}
+          <Route path="/accounts/:service" element={
+            <ProtectedRoute>
+              <AccountsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/cookies" element={
+            <ProtectedRoute>
+              <CookiesPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
   );
 }
 

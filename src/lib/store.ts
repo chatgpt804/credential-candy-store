@@ -32,7 +32,6 @@ export interface Cookie {
   status: "active" | "expiring" | "expired";
 }
 
-// User rate limiting with local storage
 const USER_CLAIM_KEY = "user_claim_timestamps";
 const CLAIM_LIMIT_HOURS = 12; // Hours between claims
 
@@ -56,7 +55,6 @@ const canUserClaim = (): boolean => {
   return recentClaims.length === 0;
 };
 
-// Convert Supabase response to Account
 const supabaseToAccount = (item: any): Account => {
   return {
     id: item.id,
@@ -73,7 +71,6 @@ const supabaseToAccount = (item: any): Account => {
   };
 };
 
-// Convert Supabase response to Game
 const supabaseToGame = (item: any): Game => {
   return {
     id: item.id,
@@ -83,7 +80,6 @@ const supabaseToGame = (item: any): Game => {
   };
 };
 
-// Convert Supabase response to Cookie
 const supabaseToCookie = (item: any): Cookie => {
   return {
     id: item.id,
@@ -96,7 +92,6 @@ const supabaseToCookie = (item: any): Cookie => {
   };
 };
 
-// API functions
 export const getAccountsByService = async (
   service: string
 ): Promise<Account[]> => {
@@ -178,7 +173,6 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
       return null;
     }
 
-    // First get the account
     const { data: accountData, error: accountError } = await supabase
       .from('accounts')
       .select('*')
@@ -193,7 +187,6 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
     
     const account = supabaseToAccount(accountData);
     
-    // Update account usage
     const now = new Date();
     const { error: updateError } = await supabase
       .from('accounts')
@@ -205,12 +198,10 @@ export const claimAccount = async (id: string): Promise<Account | null> => {
     
     if (updateError) throw updateError;
     
-    // Track the claim
     addUserClaim();
     
     toast.success("Account claimed successfully!");
     
-    // Return updated account
     return {
       ...account,
       lastUsed: now.toISOString(),
@@ -342,17 +333,6 @@ export const deleteCookie = async (id: string): Promise<boolean> => {
   }
 };
 
-// Service request functionality
-export interface ServiceRequest {
-  id: string;
-  email: string;
-  service: string;
-  plan: string;
-  reason: string;
-  status: "pending" | "approved" | "rejected";
-  createdAt: string;
-}
-
 export const submitServiceRequest = async (
   request: Omit<ServiceRequest, "id" | "status" | "createdAt">
 ): Promise<ServiceRequest> => {
@@ -434,14 +414,12 @@ export const updateServiceRequestStatus = async (
   }
 };
 
-// Admin authentication
 export const ADMIN_KEY = "admin123";
 
 export const verifyAdminKey = (key: string): boolean => {
   return key === ADMIN_KEY;
 };
 
-// New functions for games
 export const addGameToAccount = async (game: Omit<Game, "id">): Promise<Game> => {
   try {
     const { data, error } = await supabase

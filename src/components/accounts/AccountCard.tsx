@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Account, Game, claimAccount } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Copy, CheckCircle, Clock, AlertTriangle, GameController } from "lucide-react";
+import { Copy, CheckCircle, Clock, AlertTriangle, Gamepad } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -129,7 +128,7 @@ const AccountCard = ({ account, onUpdate }: AccountCardProps) => {
           {account.service === 'steam' && account.games && account.games.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center text-sm text-muted-foreground mb-2">
-                <GameController className="h-4 w-4 mr-1" />
+                <Gamepad className="h-4 w-4 mr-1" />
                 <span>Included Games</span>
               </div>
               <div className="bg-secondary/50 rounded-md p-3">

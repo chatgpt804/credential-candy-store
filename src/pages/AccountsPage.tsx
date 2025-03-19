@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +5,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import AccountCard from "@/components/accounts/AccountCard";
 import { getAccountsByService } from "@/lib/store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlaySquare, GamepadIcon, ShoppingBag, GameController } from "lucide-react";
+import { PlaySquare, Gamepad, ShoppingBag } from "lucide-react";
 
 const serviceDetails = {
   netflix: {
@@ -35,7 +34,7 @@ const serviceDetails = {
   },
   steam: {
     name: "Steam",
-    icon: GamepadIcon,
+    icon: Gamepad,
     color: "text-blue-500",
     description: "Get access to premium Steam accounts with popular games and features.",
     features: [

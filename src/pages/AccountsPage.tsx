@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -5,7 +6,8 @@ import MainLayout from "@/components/layout/MainLayout";
 import AccountCard from "@/components/accounts/AccountCard";
 import { getAccountsByService } from "@/lib/store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlaySquare, Gamepad, ShoppingBag } from "lucide-react";
+import { PlaySquare, Gamepad, ShoppingBag, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const serviceDetails = {
   netflix: {
@@ -61,6 +63,7 @@ const serviceDetails = {
 const AccountsPage = () => {
   const { service } = useParams<{ service: string }>();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // Handle invalid service parameter
   if (!service || !Object.keys(serviceDetails).includes(service)) {
@@ -78,6 +81,15 @@ const AccountsPage = () => {
   };
 
   const ServiceIcon = serviceDetails[service as keyof typeof serviceDetails].icon;
+
+  // Filter accounts based on search term if it's the Steam service
+  const filteredAccounts = accounts ? accounts.filter(account => {
+    if (service !== 'steam' || !searchTerm) return true;
+    
+    return account.games?.some(game => 
+      game.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }) : [];
 
   return (
     <MainLayout>
@@ -105,6 +117,22 @@ const AccountsPage = () => {
           </div>
         </div>
 
+        {/* Search bar for Steam accounts only */}
+        {service === 'steam' && (
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search by game name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        )}
+
         <h2 className="text-2xl font-medium mb-6">Available Accounts</h2>
         
         {isLoading ? (
@@ -124,15 +152,19 @@ const AccountsPage = () => {
           <div className="text-center py-10">
             <p className="text-destructive">Error loading accounts. Please try again later.</p>
           </div>
-        ) : accounts && accounts.length > 0 ? (
+        ) : filteredAccounts && filteredAccounts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {accounts.map((account) => (
+            {filteredAccounts.map((account) => (
               <AccountCard key={account.id} account={account} onUpdate={handleAccountUpdate} />
             ))}
           </div>
         ) : (
           <div className="text-center py-10">
-            <p className="text-muted-foreground">No accounts available at the moment. Please check back later.</p>
+            <p className="text-muted-foreground">
+              {searchTerm && service === 'steam' 
+                ? "No accounts found with that game. Please try a different search term."
+                : "No accounts available at the moment. Please check back later."}
+            </p>
           </div>
         )}
       </div>
